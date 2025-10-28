@@ -1,0 +1,15 @@
+# Android build artifacts
+/build/
+# Android generated files
+/generated/
+# External native builds
+/.externalNativeBuild/
+/.cxx/
+
+# Local release/debug outputs
+/release/
+/debug/
+
+# IDE specific
+.idea/
+*.iml

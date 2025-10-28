@@ -1,0 +1,41 @@
+# 🧠 Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+/local.properties
+.gradle/
+build/
+
+# ⚙️ Gradle
+**/.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# 🧰 Logs & Temp
+*.log
+*.tmp
+*.lock
+*.bak
+*.swp
+*.swo
+
+# 🧱 System Files
+Thumbs.db
+ehthumbs.db
+*.DS_Store
+
+# 🔒 Sensitive
+*.keystore
+*.jks
+*.pem
+*.p12
+*.crt
+*.key
+*.env
+
+# 🧩 Ktor Server (if in same project)
+ktor-server/.gradle/
+ktor-server/build/
+ktor-server/out/
+ktor-server/.idea/
+ktor-server/local.properties
