@@ -14,7 +14,6 @@ fun AppNavGraph() {
         composable("login") { LoginScreen(navController) }
         composable("register") { RegisterScreen(navController) }
         composable("forgot") { ForgotPasswordScreen(navController) }
-        // After successful login go to "main", which contains drawer + bottom nav
         composable("main") { MainScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
         composable("settings") { SettingsScreen() }
@@ -23,10 +22,16 @@ fun AppNavGraph() {
         composable("about") { AboutScreen() }
         composable("map") { MapScreen() }
         composable("ai") { AIChatScreen(navController) }
-
-
-
-
-
+        composable("report") { ReportIncidentScreen(navController) }
+        composable("alerts") { EmergencyAlertsScreen(navController) }
+        composable("myreports") { MyReportsScreen(navController) }
+        composable("incidentDetails") { IncidentDetailsScreen(navController) }
+        composable("shelters") { SheltersScreen() }
+        composable("safety") { SafetyGuidelinesScreen() }
+        composable("shareLocation") { ShareLocationScreen() }
+        composable("manageUsers") { ManageUsersScreen() }
+        composable("manageAlerts") { ManageAlertsScreen() }
+        composable("emergencyBroadcast") { EmergencyBroadcastScreen() }
+        composable("help") { HelpSupportScreen(navController) }
     }
 }

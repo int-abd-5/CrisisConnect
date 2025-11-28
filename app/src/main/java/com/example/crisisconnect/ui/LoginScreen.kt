@@ -1,8 +1,20 @@
 package com.example.crisisconnect.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -22,8 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.crisisconnect.R
-import com.example.crisisconnect.ui.theme.PurpleStart
 import com.example.crisisconnect.ui.theme.PurpleEnd
+import com.example.crisisconnect.ui.theme.PurpleStart
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -32,12 +44,27 @@ fun LoginScreen(navController: NavController) {
     var password by remember { mutableStateOf("") }
     var passVisible by remember { mutableStateOf(false) }
 
+    // Animated gradient background for a subtle live-wallpaper feel
+    val transition = rememberInfiniteTransition(label = "loginGradient")
+    val shift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradientShift"
+    )
+    val backgroundGradient = Brush.verticalGradient(
+        colors = listOf(PurpleStart, Color(0xFF5C6BC0), PurpleEnd),
+        startY = 0f,
+        endY = 1200f * (1f + shift)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(listOf(PurpleStart, PurpleEnd))
-            )
+            .background(backgroundGradient)
             .padding(26.dp),
         contentAlignment = Alignment.Center
     ) {

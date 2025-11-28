@@ -21,7 +21,7 @@ fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier
         composable("alerts") { EmergencyAlertsScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
 
-        // Optional screens navigated inside Profile
+
         composable("settings") { SettingsScreen() }
         composable("myreports") { MyReportsScreen(navController) }
         composable("incidentDetails") { IncidentDetailsScreen(navController) }

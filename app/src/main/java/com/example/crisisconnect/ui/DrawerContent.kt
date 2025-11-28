@@ -1,16 +1,27 @@
 package com.example.crisisconnect.ui.components
-import com.example.crisisconnect.ui.components.DrawerContent
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,22 +36,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.example.crisisconnect.ui.theme.PurpleStart
 
 @Composable
-fun DrawerContent(navController: NavController) {
-
+fun DrawerContent(
+    onNavigate: (String) -> Unit,
+    onLogout: () -> Unit
+) {
     ModalDrawerSheet(
         modifier = Modifier
             .width(260.dp)
             .fillMaxHeight()
             .background(Color.White)
     ) {
-
         Spacer(Modifier.height(12.dp))
 
-        // USER HEADER
         Card(
             modifier = Modifier
                 .padding(16.dp)
@@ -49,68 +59,36 @@ fun DrawerContent(navController: NavController) {
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
-
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    "John Doe",
-                    color = PurpleStart,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "john@example.com",
-                    color = Color.Gray,
-                    fontSize = 14.sp
-                )
+                Text("Crisis Operator", color = PurpleStart, style = MaterialTheme.typography.titleMedium)
+                Text("ops@crisisconnect.app", color = Color.Gray, fontSize = 14.sp)
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // MENU OPTIONS
-        DrawerItem(
-            title = "Profile",
-            icon = Icons.Default.Person
-        ) { navController.navigate("profile") }
+        DrawerItem("Dashboard", Icons.Default.Map) { onNavigate("main") }
+        DrawerItem("Profile", Icons.Default.Person) { onNavigate("profile") }
+        DrawerItem("Settings", Icons.Default.Settings) { onNavigate("settings") }
+        DrawerItem("Emergency Contacts", Icons.Default.Phone) { onNavigate("contacts") }
+        DrawerItem("AI Assistant", Icons.Default.Chat) { onNavigate("ai") }
+        DrawerItem("Notifications", Icons.Default.Notifications) { onNavigate("notifications") }
+        DrawerItem("Shelters & Safe Zones", Icons.Default.Map) { onNavigate("shelters") }
+        DrawerItem("Safety Instructions", Icons.Default.Info) { onNavigate("safety") }
+        DrawerItem("Manage Users", Icons.Default.Security) { onNavigate("manageUsers") }
+        DrawerItem("Manage Alerts", Icons.Default.ArrowCircleUp) { onNavigate("manageAlerts") }
 
-        DrawerItem(
-            title = "Settings",
-            icon = Icons.Default.Settings
-        ) { navController.navigate("settings") }
+        Spacer(Modifier.height(26.dp))
 
-        DrawerItem(
-            title = "Emergency Contacts",
-            icon = Icons.Default.Phone
-        ) { navController.navigate("contacts") }
-
-        DrawerItem(
-            title = "Notifications",
-            icon = Icons.Default.Notifications
-        ) { navController.navigate("notifications") }
-
-        DrawerItem(
-            title = "About App",
-            icon = Icons.Default.Info
-        ) { navController.navigate("about") }
-
-        Spacer(modifier = Modifier.height(26.dp))
-
-        DrawerItem(
-            title = "Logout",
-            icon = Icons.Default.ExitToApp,
-            color = Color.Red
-        ) {
-            navController.navigate("login") {
-                popUpTo("main") { inclusive = true }
-            }
-        }
+        DrawerItem("Logout", Icons.Default.ExitToApp, Color.Red) { onLogout() }
     }
 }
 
 @Composable
-fun DrawerItem(
+private fun DrawerItem(
     title: String,
     icon: ImageVector,
     color: Color = PurpleStart,
@@ -125,11 +103,6 @@ fun DrawerItem(
     ) {
         Icon(icon, contentDescription = title, tint = color)
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            color = color,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text(text = title, fontSize = 16.sp, color = color, style = MaterialTheme.typography.bodyMedium)
     }
 }

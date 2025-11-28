@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.crisisconnect.ui.components.DrawerContent   // ✅ FIXED IMPORT
+import com.example.crisisconnect.ui.components.DrawerContent
 import com.example.crisisconnect.ui.screens.DashboardScreen
 import com.example.crisisconnect.ui.theme.PurpleEnd
 import com.example.crisisconnect.ui.theme.PurpleStart
@@ -29,7 +29,20 @@ fun MainScreen(navController: NavHostController) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerContent(navController)   // ✅ DRAWER CALL FIXED
+            DrawerContent(
+                onNavigate = { route ->
+                    scope.launch { drawerState.close() }
+                    if (route != "main") {
+                        navController.navigate(route)
+                    }
+                },
+                onLogout = {
+                    scope.launch { drawerState.close() }
+                    navController.navigate("login") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                }
+            )
         }
     ) {
 
