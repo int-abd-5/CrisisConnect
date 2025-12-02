@@ -13,10 +13,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,26 +31,44 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.crisisconnect.data.SampleDataProvider
-import com.example.crisisconnect.data.model.Alert
+import com.example.crisisconnect.data.AlertRepository
+import com.example.crisisconnect.data.SessionManager
 import com.example.crisisconnect.data.model.AlertSeverity
-import com.example.crisisconnect.data.model.AlertType
 import com.example.crisisconnect.ui.theme.AppRed
 import com.example.crisisconnect.ui.theme.TextPrimary
 
 @Composable
 fun EmergencyAlertsScreen(navController: NavController) {
-    var selectedType by remember { mutableStateOf<AlertType?>(null) }
-    var selectedSeverity by remember { mutableStateOf<AlertSeverity?>(null) }
+    val context = LocalContext.current
+    SessionManager.initialize(context)
+    
+    var alerts by remember { mutableStateOf<List<com.example.crisisconnect.data.DisasterAlert>>(emptyList()) }
+    var selectedType by remember { mutableStateOf<String?>(null) }
+    var selectedSeverity by remember { mutableStateOf<String?>(null) }
     var onlyVerified by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
 
-    val filtered = SampleDataProvider.alerts.filter { alert ->
-        (selectedType == null || alert.type == selectedType) &&
-            (selectedSeverity == null || alert.severity == selectedSeverity) &&
-            (!onlyVerified || alert.verified)
+    // Load alerts
+    LaunchedEffect(Unit) {
+        isLoading = true
+        try {
+            alerts = AlertRepository.getAllAlerts()
+        } catch (e: Exception) {
+            // Handle error
+        } finally {
+            isLoading = false
+        }
+    }
+
+    val filtered = alerts.filter { alert ->
+        (selectedType == null || alert.disaster_type == selectedType) &&
+            (selectedSeverity == null || alert.severity.equals(selectedSeverity, ignoreCase = true))
+        // Note: DisasterAlert doesn't have a verified field, so we skip that filter
     }
 
     Column(
@@ -57,6 +77,19 @@ fun EmergencyAlertsScreen(navController: NavController) {
             .background(Color.White)
             .padding(16.dp)
     ) {
+        
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("Loading alerts...", color = Color.Gray)
+                }
+            }
+        } else {
 
         Text(
             "Disaster Alerts",
@@ -74,12 +107,12 @@ fun EmergencyAlertsScreen(navController: NavController) {
 
         FilterRow(
             selectedType = selectedType,
-            onTypeSelected = {
-                selectedType = if (selectedType == it) null else it
+            onTypeSelected = { type ->
+                selectedType = if (selectedType == type) null else type
             },
             selectedSeverity = selectedSeverity,
-            onSeveritySelected = {
-                selectedSeverity = if (selectedSeverity == it) null else it
+            onSeveritySelected = { severity ->
+                selectedSeverity = if (selectedSeverity == severity) null else severity
             },
             onlyVerified = onlyVerified,
             onVerifiedToggle = { onlyVerified = !onlyVerified },
@@ -88,24 +121,43 @@ fun EmergencyAlertsScreen(navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            items(filtered, key = { it.id }) { alert ->
-                AlertCard(alert)
+        if (filtered.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    Text("🚨", fontSize = 64.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Text("No Alerts Found", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text("No alerts match your filters", color = Color.Gray, fontSize = 14.sp)
+                }
             }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(filtered, key = { it.id }) { alert ->
+                    AlertCard(alert)
+                }
+            }
+        }
         }
     }
 }
 
 @Composable
 private fun FilterRow(
-    selectedType: AlertType?,
-    onTypeSelected: (AlertType) -> Unit,
-    selectedSeverity: AlertSeverity?,
-    onSeveritySelected: (AlertSeverity) -> Unit,
+    selectedType: String?,
+    onTypeSelected: (String) -> Unit,
+    selectedSeverity: String?,
+    onSeveritySelected: (String) -> Unit,
     onlyVerified: Boolean,
     onVerifiedToggle: () -> Unit,
     onOpenMap: () -> Unit
 ) {
+    val disasterTypes = listOf("Fire", "Flood", "Earthquake", "Medical", "Security", "Infrastructure")
+    val severityLevels = listOf("LOW", "MODERATE", "HIGH", "CRITICAL")
+    
     Column {
         Text("Filter by type", fontWeight = FontWeight.SemiBold, color = Color.Black)
         Row(
@@ -114,9 +166,9 @@ private fun FilterRow(
                 .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AlertType.values().forEach { type ->
+            disasterTypes.forEach { type ->
                 FilterChip(
-                    label = type.name.lowercase().replaceFirstChar { it.titlecase() },
+                    label = type,
                     selected = selectedType == type,
                     onSelected = { onTypeSelected(type) }
                 )
@@ -130,10 +182,10 @@ private fun FilterRow(
                 .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AlertSeverity.values().forEach { severity ->
+            severityLevels.forEach { severity ->
                 FilterChip(
-                    label = severity.name.lowercase().replaceFirstChar { it.titlecase() },
-                    selected = selectedSeverity == severity,
+                    label = severity.lowercase().replaceFirstChar { it.titlecase() },
+                    selected = selectedSeverity?.equals(severity, ignoreCase = true) == true,
                     onSelected = { onSeveritySelected(severity) }
                 )
             }
@@ -176,12 +228,13 @@ private fun FilterChip(label: String, selected: Boolean, onSelected: () -> Unit)
 }
 
 @Composable
-private fun AlertCard(alert: Alert) {
-    val indicatorColor = when (alert.severity) {
-        AlertSeverity.LOW -> Color(0xFF4CAF50)
-        AlertSeverity.MODERATE -> Color(0xFFFFC107)
-        AlertSeverity.HIGH -> Color(0xFFFF7043)
-        AlertSeverity.CRITICAL -> Color(0xFFD32F2F)
+private fun AlertCard(alert: com.example.crisisconnect.data.DisasterAlert) {
+    val indicatorColor = when (alert.severity.uppercase()) {
+        "CRITICAL" -> Color(0xFFD32F2F)
+        "HIGH" -> Color(0xFFFF7043)
+        "MODERATE" -> Color(0xFFFFC107)
+        "LOW" -> Color(0xFF4CAF50)
+        else -> Color(0xFF4CAF50)
     }
 
     Card(
@@ -200,30 +253,24 @@ private fun AlertCard(alert: Alert) {
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
-                Text(alert.timestamp, color = Color.Gray, fontSize = 12.sp)
+                Text(alert.created_at.take(10), color = Color.Gray, fontSize = 12.sp)
             }
 
             Spacer(Modifier.height(4.dp))
-            Text(alert.description, color = Color.DarkGray)
+            Text(alert.message, color = Color.DarkGray)
 
             Spacer(Modifier.height(8.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusPill(text = alert.type.name, color = indicatorColor)
-                StatusPill(text = alert.severity.name, color = indicatorColor.copy(alpha = 0.3f))
-                if (alert.verified) {
-                    StatusPill(text = "Verified", color = Color(0xFF4CAF50))
-                }
-                if (alert.acknowledged) {
-                    StatusPill(text = "Acknowledged", color = Color(0xFF00796B))
-                }
+                StatusPill(text = alert.disaster_type, color = indicatorColor)
+                StatusPill(text = alert.severity, color = indicatorColor.copy(alpha = 0.3f))
             }
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Issued by ${alert.issuedBy} • ${alert.location}",
+                "Location: ${alert.location ?: "Unknown"}",
                 color = Color.Gray,
                 fontSize = 12.sp
             )

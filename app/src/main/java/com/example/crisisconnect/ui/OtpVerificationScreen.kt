@@ -1,71 +1,90 @@
 package com.example.crisisconnect.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.crisisconnect.data.AuthRepository
-import com.example.crisisconnect.ui.theme.PurpleStart
 import com.example.crisisconnect.ui.theme.PurpleEnd
+import com.example.crisisconnect.ui.theme.PurpleStart
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.height
 
 @Composable
-fun ForgotPasswordScreen(navController: NavController) {
-
+fun OtpVerificationScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(PurpleStart, PurpleEnd)))
-            .padding(26.dp),
-        contentAlignment = Alignment.Center
+            .background(
+                Brush.verticalGradient(listOf(PurpleStart, PurpleEnd))
+            )
+            .padding(24.dp)
     ) {
+        Text(
+            "OTP Verification",
+            color = Color.White,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            "Enter the verification code sent to your email.",
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = 16.sp,
+            modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(16.dp, RoundedCornerShape(24.dp))
-                .background(Color.White.copy(alpha = 0.85f), RoundedCornerShape(24.dp))
-                .padding(30.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
+                .padding(20.dp)
         ) {
-
-            Text("Reset Password", fontSize = 24.sp, color = PurpleStart)
-
-            Spacer(Modifier.height(18.dp))
-
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Enter your Email") },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black
+                )
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = otp,
+                onValueChange = { otp = it },
+                label = { Text("Verification Code") },
+                modifier = Modifier.fillMaxWidth(),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.Black,
                     unfocusedTextColor = Color.Black
@@ -75,7 +94,7 @@ fun ForgotPasswordScreen(navController: NavController) {
             statusMessage?.let {
                 Text(
                     it,
-                    color = if (it.contains("sent", true)) Color(0xFF1B5E20) else Color(0xFFD32F2F),
+                    color = if (it.contains("success", true)) Color(0xFF1B5E20) else Color(0xFFD32F2F),
                     modifier = Modifier.padding(top = 12.dp)
                 )
             }
@@ -84,31 +103,38 @@ fun ForgotPasswordScreen(navController: NavController) {
 
             Button(
                 onClick = {
-                    if (email.isBlank()) {
-                        statusMessage = "Please enter your email."
+                    if (email.isBlank() || otp.isBlank()) {
+                        statusMessage = "Please provide both email and verification code."
                         return@Button
                     }
+
                     scope.launch {
                         isLoading = true
                         statusMessage = null
                         try {
-                            AuthRepository.resetPassword(email.trim())
-                            statusMessage = "Reset link sent! Check your inbox."
-                            navController.navigate("login")
+                            AuthRepository.verifyOtp(email.trim(), otp.trim())
+                            statusMessage = "Verification success! You can now sign in."
                         } catch (e: Exception) {
-                            statusMessage = e.localizedMessage ?: "Unable to send reset email."
+                            statusMessage = e.localizedMessage ?: "Verification failed."
                         } finally {
                             isLoading = false
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PurpleStart),
-                enabled = !isLoading
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = PurpleStart)
             ) {
-                Text(if (isLoading) "Sending..." else "Send Reset Link", color = Color.White)
+                Text(if (isLoading) "Verifying..." else "Verify Code")
+            }
+
+            TextButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Back to Login", color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
+

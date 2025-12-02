@@ -28,15 +28,62 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.crisisconnect.data.SampleDataProvider
+import com.example.crisisconnect.data.AdminRepository
+import com.example.crisisconnect.data.ProfileRepository
+import com.example.crisisconnect.data.SessionManager
 import com.example.crisisconnect.data.model.UserProfile
 import com.example.crisisconnect.data.model.UserRole
+import kotlinx.coroutines.launch
 
 @Composable
 fun ManageUsersScreen() {
-    val users = SampleDataProvider.users
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    SessionManager.initialize(context)
+    
+    var users by remember { mutableStateOf<List<UserProfile>>(emptyList()) }
+    var isAdmin by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        isLoading = true
+        try {
+            val userId = SessionManager.getUserId()
+            if (userId != null) {
+                isAdmin = AdminRepository.isAdmin(userId)
+                if (isAdmin) {
+                    // Get all users from profiles table
+                    users = com.example.crisisconnect.data.network.SupabaseHttpClient.from<UserProfile>(
+                        table = "profiles",
+                        select = "*"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // Handle error
+        } finally {
+            isLoading = false
+        }
+    }
+    
+    if (!isAdmin) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("Admin access required", style = MaterialTheme.typography.headlineSmall)
+            Text("You need admin privileges to manage users.", color = Color.Gray)
+        }
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -58,8 +105,18 @@ fun ManageUsersScreen() {
 
 @Composable
 private fun UserCard(user: UserProfile) {
-    var active by remember { mutableStateOf(user.active) }
-    var role by remember { mutableStateOf(user.role) }
+    val scope = rememberCoroutineScope()
+    var fullName by remember { mutableStateOf(user.full_name ?: "") }
+    var phone by remember { mutableStateOf(user.phone ?: "") }
+    
+    // Convert role string to UserRole enum, default to CITIZEN if invalid
+    val initialRole = try {
+        UserRole.valueOf(user.role?.uppercase() ?: "CITIZEN")
+    } catch (e: Exception) {
+        UserRole.CITIZEN
+    }
+    var selectedRole by remember { mutableStateOf(initialRole) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -67,37 +124,41 @@ private fun UserCard(user: UserProfile) {
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(user.name, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-            Text("${user.organization} • ${user.email}", color = Color.Gray, fontSize = 13.sp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Active", fontWeight = FontWeight.SemiBold)
-                Switch(checked = active, onCheckedChange = { active = it })
-            }
-
+            Text(user.full_name ?: "Unknown", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+            Text("${user.organization ?: ""} • ${user.phone ?: ""}", color = Color.Gray, fontSize = 13.sp)
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Role")
-                RoleSelector(current = role, onChange = { role = it })
+                RoleSelector(current = selectedRole, onChange = { selectedRole = it })
             }
 
             Button(
                 onClick = {
-                    val index = SampleDataProvider.users.indexOfFirst { it.id == user.id }
-                    if (index != -1) {
-                        SampleDataProvider.users[index] = user.copy(role = role, active = active)
+                    scope.launch {
+                        isLoading = true
+                        try {
+                            AdminRepository.adminUpdateUser(
+                                userId = user.id,
+                                fullName = fullName.takeIf { it.isNotBlank() },
+                                phone = phone.takeIf { it.isNotBlank() },
+                                role = selectedRole.name // Convert enum to string
+                            )
+                        } catch (e: Exception) {
+                            // Handle error
+                        } finally {
+                            isLoading = false
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3949AB))
             ) {
-                Text("Save")
+                Text(if (isLoading) "Saving..." else "Save")
             }
         }
     }

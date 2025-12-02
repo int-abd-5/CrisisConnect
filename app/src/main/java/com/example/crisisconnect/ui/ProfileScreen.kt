@@ -33,23 +33,57 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.crisisconnect.R
-import com.example.crisisconnect.data.SampleDataProvider
-import com.example.crisisconnect.data.model.UserProfile
+import com.example.crisisconnect.data.ProfileRepository
+import com.example.crisisconnect.data.SessionManager
 import com.example.crisisconnect.data.model.UserRole
 import com.example.crisisconnect.ui.theme.PurpleStart
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(navController: NavController) {
-    var selectedProfile by remember { mutableStateOf(SampleDataProvider.users.first()) }
-    var name by remember { mutableStateOf(selectedProfile.name) }
-    var email by remember { mutableStateOf(selectedProfile.email) }
-    var phone by remember { mutableStateOf(selectedProfile.phone) }
-    var organization by remember { mutableStateOf(selectedProfile.organization) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    SessionManager.initialize(context)
+    
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var organization by remember { mutableStateOf("") }
+    var currentRole by remember { mutableStateOf<UserRole?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Load profile on init
+    LaunchedEffect(Unit) {
+        val userId = SessionManager.getUserId()
+        if (userId != null) {
+            try {
+                val profile = ProfileRepository.getProfile(userId)
+                profile?.let {
+                    name = it.full_name ?: ""
+                    phone = it.phone ?: ""
+                    organization = it.organization ?: ""
+                    // Convert role string to UserRole enum
+                    currentRole = try {
+                        UserRole.valueOf(it.role?.uppercase() ?: "CITIZEN")
+                    } catch (e: Exception) {
+                        UserRole.CITIZEN
+                    }
+                }
+            } catch (e: Exception) {
+                statusMessage = "Failed to load profile: ${e.localizedMessage}"
+            }
+        } else {
+            statusMessage = "Please log in to view your profile."
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -69,30 +103,25 @@ fun ProfileScreen(navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        RoleToggle(
-            currentRole = selectedProfile.role,
-            onRoleChange = { role ->
-                val updated = selectedProfile.copy(role = role)
-                selectedProfile = updated
-            }
-        )
-
-        Spacer(Modifier.height(16.dp))
+        currentRole?.let { role ->
+            RoleToggle(
+                currentRole = role,
+                onRoleChange = { newRole ->
+                    currentRole = newRole
+                }
+            )
+            Spacer(Modifier.height(16.dp))
+        }
 
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
             label = { Text("Full Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(10.dp))
@@ -101,7 +130,11 @@ fun ProfileScreen(navController: NavController) {
             value = phone,
             onValueChange = { phone = it },
             label = { Text("Phone") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(10.dp))
@@ -110,25 +143,60 @@ fun ProfileScreen(navController: NavController) {
             value = organization,
             onValueChange = { organization = it },
             label = { Text("Organization") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(24.dp))
 
+        statusMessage?.let {
+            Text(
+                it,
+                color = if (it.contains("success", true)) Color(0xFF1B5E20) else Color(0xFFD32F2F),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         Button(
             onClick = {
-                SampleDataProvider.users[0] = selectedProfile.copy(
-                    name = name,
-                    email = email,
-                    phone = phone,
-                    organization = organization
-                )
-                showDialog = true
+                scope.launch {
+                    isLoading = true
+                    statusMessage = null
+                    try {
+                        val userId = SessionManager.getUserId()
+                        if (userId == null) {
+                            statusMessage = "Please log in to update your profile."
+                            isLoading = false
+                            return@launch
+                        }
+                        
+                        // TODO: Get location coordinates from location picker
+                        ProfileRepository.updateProfile(
+                            userId = userId,
+                            fullName = name.takeIf { it.isNotBlank() },
+                            phone = phone.takeIf { it.isNotBlank() },
+                            locationLat = null, // TODO: Get from location picker
+                            locationLon = null, // TODO: Get from location picker
+                            organization = organization.takeIf { it.isNotBlank() },
+                            role = currentRole?.name // Convert enum to string
+                        )
+                        statusMessage = "Profile updated successfully!"
+                        showDialog = true
+                    } catch (e: Exception) {
+                        statusMessage = e.localizedMessage ?: "Failed to update profile."
+                    } finally {
+                        isLoading = false
+                    }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = PurpleStart)
         ) {
-            Text("Save Changes", color = Color.White, fontSize = 16.sp)
+            Text(if (isLoading) "Saving..." else "Save Changes", color = Color.White, fontSize = 16.sp)
         }
 
         Spacer(Modifier.height(12.dp))

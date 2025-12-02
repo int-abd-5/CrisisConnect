@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.crisisconnect.ui.components.DrawerContent
+import com.example.crisisconnect.ui.navigation.BottomBar
 import com.example.crisisconnect.ui.screens.DashboardScreen
 import com.example.crisisconnect.ui.theme.PurpleEnd
 import com.example.crisisconnect.ui.theme.PurpleStart
@@ -73,6 +74,9 @@ fun MainScreen(navController: NavHostController) {
                         Brush.horizontalGradient(listOf(PurpleStart, PurpleEnd))
                     )
                 )
+            },
+            bottomBar = {
+                BottomBar(navController)
             },
             containerColor = Color.White
         ) { padding ->

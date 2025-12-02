@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -28,14 +30,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
-import com.example.crisisconnect.data.SampleDataProvider
+import com.example.crisisconnect.data.IncidentRepository
+import com.example.crisisconnect.data.SessionManager
 import com.example.crisisconnect.data.model.AlertSeverity
-import com.example.crisisconnect.data.model.Incident
 import com.example.crisisconnect.ui.theme.AppRed
+import kotlinx.coroutines.launch
 
 @Composable
 fun ReportIncidentScreen(navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    SessionManager.initialize(context)
+    
     val incidentTypes = listOf("Fire", "Flood", "Earthquake", "Medical", "Security", "Infrastructure")
     val severityLevels = AlertSeverity.values()
 
@@ -47,6 +56,8 @@ fun ReportIncidentScreen(navController: NavController) {
     var reporter by remember { mutableStateOf("You") }
     var expanded by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -72,7 +83,11 @@ fun ReportIncidentScreen(navController: NavController) {
             value = title,
             onValueChange = { title = it },
             label = { Text("Incident Title") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -81,7 +96,11 @@ fun ReportIncidentScreen(navController: NavController) {
             value = location,
             onValueChange = { location = it },
             label = { Text("Location / Coordinates") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -90,7 +109,11 @@ fun ReportIncidentScreen(navController: NavController) {
             value = reporter,
             onValueChange = { reporter = it },
             label = { Text("Reporter Name / Unit") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -141,39 +164,78 @@ fun ReportIncidentScreen(navController: NavController) {
             label = { Text("Detailed Description") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
+                .height(140.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(20.dp))
 
+        statusMessage?.let {
+            Text(
+                it,
+                color = if (it.contains("success", true)) Color(0xFF1B5E20) else Color(0xFFD32F2F),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         Button(
             onClick = {
-                if (title.isNotBlank() && location.isNotBlank()) {
-                    SampleDataProvider.incidents.add(
-                        Incident(
-                            id = "IN-${System.currentTimeMillis()}",
-                            title = title,
-                            type = selectedType,
-                            location = location,
-                            reporter = reporter,
-                            status = "Pending Verification",
-                            description = description,
-                            severity = severity,
-                            lastUpdated = "Just now"
-                        )
-                    )
-                    showDialog = true
-                    title = ""
-                    description = ""
-                    location = ""
+                if (title.isNotBlank() && location.isNotBlank() && description.isNotBlank()) {
+                    scope.launch {
+                        isLoading = true
+                        statusMessage = null
+                        try {
+                            val userId = SessionManager.getUserId()
+                            if (userId == null) {
+                                statusMessage = "Please log in to submit a report."
+                                isLoading = false
+                                return@launch
+                            }
+                            
+                            // TODO: Extract lat/lon from location picker or geocoding
+                            // For now, using placeholder coordinates (Lahore, Pakistan)
+                            val lat = 31.5204
+                            val lon = 74.3587
+                            
+                            IncidentRepository.addIncidentReport(
+                                userId = userId,
+                                disasterEventId = null, // Can be linked to a disaster event if available
+                                description = "$title: $description",
+                                lat = lat,
+                                lon = lon
+                            )
+                            statusMessage = "Report submitted successfully!"
+                            showDialog = true
+                            title = ""
+                            description = ""
+                            location = ""
+                        } catch (e: Exception) {
+                            statusMessage = e.localizedMessage ?: "Failed to submit report. Please try again."
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                } else {
+                    statusMessage = "Please fill in all required fields."
                 }
             },
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AppRed)
         ) {
-            Text("Submit Report", color = Color.White, fontSize = 18.sp)
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White
+                )
+            } else {
+                Text("Submit Report", color = Color.White, fontSize = 18.sp)
+            }
         }
     }
 

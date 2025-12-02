@@ -18,28 +18,46 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.crisisconnect.data.SettingsManager
 import com.example.crisisconnect.ui.theme.AppThemeState
 import com.example.crisisconnect.ui.theme.PurpleEnd
 import com.example.crisisconnect.ui.theme.PurpleStart
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    SettingsManager.initialize(context)
+    
     var notifications by remember { mutableStateOf(true) }
     var darkMode by remember { mutableStateOf(AppThemeState.darkMode) }
     var voiceActivation by remember { mutableStateOf(true) }
     var autoShareLocation by remember { mutableStateOf(false) }
     var alertThreshold by remember { mutableStateOf("Critical only") }
+    
+    // Load saved settings
+    LaunchedEffect(Unit) {
+        notifications = SettingsManager.pushNotifications.first()
+        voiceActivation = SettingsManager.voiceActivation.first()
+        autoShareLocation = SettingsManager.autoShareLocation.first()
+        alertThreshold = SettingsManager.alertThreshold.first()
+    }
 
     Column(
         modifier = Modifier
@@ -55,7 +73,12 @@ fun SettingsScreen() {
 
         Spacer(Modifier.height(20.dp))
 
-        SettingSwitch("Enable Push Notifications", notifications) { notifications = it }
+        SettingSwitch("Enable Push Notifications", notifications) { 
+            notifications = it
+            scope.launch {
+                SettingsManager.setPushNotifications(it)
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
         SettingSwitch("Dark Mode", darkMode) {
@@ -64,13 +87,28 @@ fun SettingsScreen() {
         }
         Spacer(Modifier.height(12.dp))
 
-        SettingSwitch("Voice Activation", voiceActivation) { voiceActivation = it }
+        SettingSwitch("Voice Activation", voiceActivation) { 
+            voiceActivation = it
+            scope.launch {
+                SettingsManager.setVoiceActivation(it)
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
-        SettingSwitch("Auto Share Location with Family", autoShareLocation) { autoShareLocation = it }
+        SettingSwitch("Auto Share Location with Family", autoShareLocation) { 
+            autoShareLocation = it
+            scope.launch {
+                SettingsManager.setAutoShareLocation(it)
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
-        AlertThresholdCard(alertThreshold) { alertThreshold = it }
+        AlertThresholdCard(alertThreshold) { 
+            alertThreshold = it
+            scope.launch {
+                SettingsManager.setAlertThreshold(it)
+            }
+        }
     }
 }
 

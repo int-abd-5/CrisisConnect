@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.FilterList
@@ -29,33 +32,92 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShareLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.crisisconnect.data.SampleDataProvider
+import com.example.crisisconnect.data.AlertRepository
+import com.example.crisisconnect.data.IncidentRepository
+import com.example.crisisconnect.data.SessionManager
 import com.example.crisisconnect.data.model.AlertSeverity
 import com.example.crisisconnect.ui.theme.PurpleEnd
 import com.example.crisisconnect.ui.theme.PurpleStart
+import kotlinx.coroutines.delay
 
 @Composable
 fun DashboardScreen(navController: NavController) {
-    val criticalAlerts = SampleDataProvider.alerts.count { it.severity == AlertSeverity.CRITICAL }
-    val openIncidents = SampleDataProvider.incidents.count { it.status.contains("Pending", true).not() }
-    val availableShelters = SampleDataProvider.shelters.count { it.isOpen }
+    val context = LocalContext.current
+    SessionManager.initialize(context)
+    
+    var alerts by remember { mutableStateOf<List<com.example.crisisconnect.data.DisasterAlert>>(emptyList()) }
+    var incidents by remember { mutableStateOf<List<com.example.crisisconnect.data.IncidentReport>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    val criticalAlerts = alerts.count { it.severity == "CRITICAL" || it.severity == "critical" }
+    val openIncidents = incidents.count { !it.status.contains("Pending", true) }
+    val availableShelters = 0 // TODO: Load from shelters table
+    
+    // Load initial data
+    LaunchedEffect(Unit) {
+        val userId = SessionManager.getUserId()
+        isLoading = true
+        errorMessage = null
+        if (userId != null) {
+            try {
+                alerts = AlertRepository.getAllAlerts()
+                incidents = IncidentRepository.getUserIncidentReports(userId)
+                errorMessage = null
+            } catch (e: Exception) {
+                errorMessage = "Failed to load data: ${e.localizedMessage}"
+            } finally {
+                isLoading = false
+            }
+        } else {
+            errorMessage = "Please log in to view dashboard"
+            isLoading = false
+        }
+    }
+    
+    // Polling for disaster alerts every 2 minutes
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(120000) // 2 minutes
+            val userId = SessionManager.getUserId()
+            if (userId != null) {
+                try {
+                    val newAlerts = AlertRepository.checkDisastersAndNotify(userId)
+                    if (newAlerts.isNotEmpty()) {
+                        alerts = AlertRepository.getAllAlerts() // Refresh all alerts
+                        // TODO: Show notifications for new alerts
+                    }
+                } catch (e: Exception) {
+                    // Handle error silently
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
 
@@ -72,32 +134,60 @@ fun DashboardScreen(navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            QuickStatCard(
-                title = "Critical Alerts",
-                value = "$criticalAlerts",
-                icon = Icons.Default.NotificationsActive,
-                onClick = { navController.navigate("alerts") },
-                modifier = Modifier.weight(1f)
-            )
-            QuickStatCard(
-                title = "Active Incidents",
-                value = "${SampleDataProvider.incidents.size}",
-                icon = Icons.Default.Report,
-                onClick = { navController.navigate("myreports") },
-                modifier = Modifier.weight(1f)
-            )
-            QuickStatCard(
-                title = "Open Shelters",
-                value = "$availableShelters",
-                icon = Icons.Default.Place,
-                onClick = { navController.navigate("shelters") },
-                modifier = Modifier.weight(1f)
-            )
-        }
+        // Loading state
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = PurpleStart)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Loading dashboard...", color = Color.Gray)
+                }
+            }
+        } else {
+            // Error state
+            errorMessage?.let {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                ) {
+                    Text(
+                        it,
+                        color = Color(0xFFD32F2F),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                QuickStatCard(
+                    title = "Critical Alerts",
+                    value = "$criticalAlerts",
+                    icon = Icons.Default.NotificationsActive,
+                    onClick = { navController.navigate("alerts") },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickStatCard(
+                    title = "Active Incidents",
+                    value = "${incidents.size}",
+                    icon = Icons.Default.Report,
+                    onClick = { navController.navigate("myreports") },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickStatCard(
+                    title = "Open Shelters",
+                    value = "$availableShelters",
+                    icon = Icons.Default.Place,
+                    onClick = { navController.navigate("shelters") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
         Spacer(Modifier.height(20.dp))
 
@@ -133,7 +223,7 @@ fun DashboardScreen(navController: NavController) {
 
         Spacer(Modifier.height(14.dp))
 
-        AlertsTicker(navController)
+        AlertsTicker(navController, alerts)
 
         Spacer(Modifier.height(18.dp))
 
@@ -158,11 +248,15 @@ fun DashboardScreen(navController: NavController) {
                 QuickAction(Icons.Default.Mic, "Voice Control") { navController.navigate("ai") }
             }
         }
+        }
     }
 }
 
 @Composable
-private fun AlertsTicker(navController: NavController) {
+private fun AlertsTicker(
+    navController: NavController,
+    alerts: List<com.example.crisisconnect.data.DisasterAlert>
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -173,7 +267,7 @@ private fun AlertsTicker(navController: NavController) {
         Column(Modifier.padding(16.dp)) {
             Text("Live Alerts Feed", fontWeight = FontWeight.SemiBold, color = PurpleStart)
             Spacer(Modifier.height(10.dp))
-            SampleDataProvider.alerts.take(3).forEach { alert ->
+            alerts.take(3).forEach { alert ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -182,9 +276,22 @@ private fun AlertsTicker(navController: NavController) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(alert.title, fontWeight = FontWeight.SemiBold, color = Color.Black)
-                        Text(alert.description, maxLines = 2, color = Color.DarkGray, fontSize = 12.sp)
+                        Text(alert.message, maxLines = 2, color = Color.DarkGray, fontSize = 12.sp)
                     }
-                    SeverityDot(alert.severity)
+                    // Severity indicator
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                when (alert.severity.uppercase()) {
+                                    "CRITICAL" -> Color(0xFFD32F2F)
+                                    "HIGH" -> Color(0xFFFF6F00)
+                                    "MODERATE" -> Color(0xFFFFC107)
+                                    else -> Color(0xFF4CAF50)
+                                },
+                                CircleShape
+                            )
+                    )
                 }
             }
         }

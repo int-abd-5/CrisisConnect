@@ -62,7 +62,11 @@ fun ShareLocationScreen() {
             value = recipients,
             onValueChange = { recipients = it },
             label = { Text("Recipients") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -73,7 +77,11 @@ fun ShareLocationScreen() {
             label = { Text("Message") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
+                .height(140.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(Modifier.height(20.dp))

@@ -15,6 +15,7 @@ fun AppNavGraph() {
         composable("register") { RegisterScreen(navController) }
         composable("forgot") { ForgotPasswordScreen(navController) }
         composable("main") { MainScreen(navController) }
+        composable("dashboard") { DashboardScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
         composable("settings") { SettingsScreen() }
         composable("contacts") { ContactsScreen(navController) }
@@ -33,5 +34,6 @@ fun AppNavGraph() {
         composable("manageAlerts") { ManageAlertsScreen() }
         composable("emergencyBroadcast") { EmergencyBroadcastScreen() }
         composable("help") { HelpSupportScreen(navController) }
+        composable("otp") { OtpVerificationScreen(navController) }
     }
 }

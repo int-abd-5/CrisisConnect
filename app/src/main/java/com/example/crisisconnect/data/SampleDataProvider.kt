@@ -151,29 +151,30 @@ object SampleDataProvider {
     val users = mutableStateListOf(
         UserProfile(
             id = "USR-01",
-            name = "Ayesha Rafiq",
-            email = "ayesha@relief.org",
+            full_name = "Ayesha Rafiq",
             phone = "+92 333 999111",
             organization = "Relief NGO",
-            role = UserRole.NGO_WORKER
+            role = "NGO_WORKER",
+            created_at = "2024-01-15T10:00:00Z",
+            updated_at = null
         ),
         UserProfile(
             id = "USR-02",
-            name = "Inspector Khan",
-            email = "khan@police.gov",
+            full_name = "Inspector Khan",
             phone = "+92 311 223344",
             organization = "City Police",
-            role = UserRole.AUTHORITY,
-            active = true
+            role = "AUTHORITY",
+            created_at = "2024-01-10T08:00:00Z",
+            updated_at = null
         ),
         UserProfile(
             id = "USR-03",
-            name = "Sara Malik",
-            email = "sara@crisisconnect.app",
+            full_name = "Sara Malik",
             phone = "+92 300 555777",
             organization = "CrisisConnect",
-            role = UserRole.ADMIN,
-            active = true
+            role = "ADMIN",
+            created_at = "2024-01-01T12:00:00Z",
+            updated_at = null
         )
     )
 

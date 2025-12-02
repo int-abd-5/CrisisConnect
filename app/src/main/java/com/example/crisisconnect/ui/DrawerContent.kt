@@ -87,6 +87,8 @@ fun DrawerContent(
     }
 }
 
+fun ModalDrawerSheet(modifier: Modifier, content: () -> Unit) {}
+
 @Composable
 private fun DrawerItem(
     title: String,
