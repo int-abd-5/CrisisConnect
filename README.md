@@ -23,5 +23,5 @@ CrisisConnect is a real-time disaster alert platform that delivers live alerts t
 ## 🚀 Getting Started
 
 ```bash
-git clone <repo-url>
+git clone <(https://github.com/int-abd-5/CrisisConnect/tree/final-branch)>
 cd crisisconnect
